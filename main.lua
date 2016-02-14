@@ -1,10 +1,14 @@
 width = display.contentWidth
 height = display.contentHeight
+currentVolume = 1
 
 function initButtons()
 	initPlayPauseResumeButton()
 	initStopButton()
 	initLoopButton()
+	initVolumeStatus()
+	initVolumePlusButton()
+	initVolumeMinusButton()
 end
 
 function initPlayPauseResumeButton()
@@ -20,7 +24,7 @@ function initPlayPauseResumeButton()
 end
 
 function playPauseResumeAction(event)
-	if event.phase == "ended" then
+	if event.phase == "ended" and sound ~= nil then
 		playPauseResumeButton.actionOnStatus()
 	end
 end
@@ -28,7 +32,7 @@ end
 play = function()
 	playPauseResumeButton.text = "Pause"
 	playPauseResumeButton.actionOnStatus = actionOnStatus.playing
-	audioChanel = audio.play(sound, currentOptions)
+	audioChanel = audio.play(sound, currentPlayOptions)
 end
 
 function soundEnded()
@@ -53,7 +57,7 @@ function initStopButton()
 	stopButton:addEventListener("touch", stop)
 end
 
-function stop(event)
+function stop()
 	if playPauseResumeButton.actionOnStatus ~= actionOnStatus.stopped then
 		audio.stop(audioChanel)
 		soundEnded()
@@ -71,31 +75,107 @@ function loop(event)
 		stop()
 		if loopButton.isLoop then
 			loopButton.text = "Loop = false"
-			currentOptions = notLoopOptions
+			currentPlayOptions = notLoopOptions
 			
 		else
 			loopButton.text = "Loop = true"
-			currentOptions = loopOptions
+			currentPlayOptions = loopOptions
 		end
 
 		loopButton.isLoop = not loopButton.isLoop
 	end
 end
 
-function initOptions()
+function initVolumeMinusButton()
+	volumeMinus = display.newText("-", width/4, height/2, native.systemFont, width/5)
+	volumeMinus:addEventListener("touch", decVolume)
+end
+
+function incVolume(event)
+	if event.phase == "ended" then
+		appendToVolume(0.1)
+	end
+end
+
+function initVolumePlusButton()
+	volumePlus = display.newText("+", width*3/4, height/2, native.systemFont, width/5)
+	volumePlus:addEventListener("touch", incVolume)
+end
+
+function decVolume(event)
+	if event.phase == "ended" then
+		appendToVolume(-0.1)
+	end
+end
+
+function appendToVolume(value)
+	if isSoundPlay() then
+		if ((currentVolume + value) >= 0 and (currentVolume + value) <= 1) then
+			currentVolume = currentVolume + value
+			audio.setVolume(currentVolume)
+			updateVolumeStatus()
+		end
+	end	
+end
+
+function isSoundPlay()
+	return playPauseResumeButton.actionOnStatus ~= actionOnStatus.stopped
+end
+
+function initVolumeStatus()
+	volumeStatus = display.newText("100%", width/2, height/2, native.systemFont, width/15)
+end
+
+function updateVolumeStatus()
+	if currentVolume < 0.1 then
+		volumeInPercent = 0
+	else
+		volumeInPercent = currentVolume*100
+	end
+	volumeStatus.text = tostring(volumeInPercent).."%"
+end
+
+function initPlayOptions()
 	notLoopOptions = {onComplete = soundEnded, chanel = 3}
 	loopOptions = {onComplete = soundEnded, chanel = 3, loops = -1}
-	currentOptions = notLoopOptions;
+	currentPlayOptions = notLoopOptions;
+end
+
+function initLoadUploadButton()
+	action = {
+		load = loadSound,
+		dispose = disposeSound
+	}
+	
+	loadDisposeButton = display.newText("Load sound", width/2, height*3/4, native.systemFont, width/15)
+	loadDisposeButton.action = action.load	
+	loadDisposeButton:addEventListener("touch", loadDisposeHandler)
+end
+
+function loadDisposeHandler(event)
+	if event.phase == "ended" then
+		loadDisposeButton.action()
+	end
 end
 
 function loadSound()
 	sound = audio.loadSound("res/pum.m4a")
+	loadDisposeButton.text = "Dispose sound"
+	loadDisposeButton.action = action.dispose
+end
+
+function disposeSound()
+	stop()
+	audio.dispose(sound)
+	loadDisposeButton.text = "Load sound"
+	loadDisposeButton.action = action.load
+	sound = nil
 end
 
 function main()
-	initOptions()
+	initPlayOptions()
 	initButtons()
-	loadSound()
+	initLoadUploadButton()
 end;
 
 --run main
